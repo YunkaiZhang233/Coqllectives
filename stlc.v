@@ -101,6 +101,27 @@ Inductive has_type: list (string * type) -> term -> type -> Prop :=
   For this reason the output type is not type but option type.
 *)
 
-Fixpoint type_check
+(* Program Fixpoint type_check
        : list (string * type) -> term -> option type :=
-       None.
+       None. *)
+
+
+Program Fixpoint lookup' {A B : Set}
+         (equal_proc_dec: forall x y : A, {x = y} + {x <> y}) 
+         {l : list (A * B)}
+         {a : A} :=
+  match l return option {b : B | assoc l a b} with
+  | nil => None
+  | cons x rest => None
+  end.
+        
+
+
+Program Fixpoint  type_check'
+       {Gamma : list (string * type)} 
+       {M : term} :=
+  match M return option {A : type | has_type Gamma M A} with
+  | var_term x => None
+  | abs_term x tx m => None
+  | app_term f n => None
+  end.
