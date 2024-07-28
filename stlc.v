@@ -60,13 +60,15 @@ Check exist.
 Fixpoint lookup {A B: Set}
   (equal_proc_dec: forall x y : A, {x = y} + {x <> y}) 
   (context: list (A * B))
-  (key: A) :=
+  (key: A) 
+  {struct context}
+  :
+  option B:=
 
   match context with
     | nil => None
     | (cons (pair a b) rest) => if equal_proc_dec a key then Some b else (lookup equal_proc_dec rest key)
   end.
-
 
 (* tests *)
 (* Definition test1_gamma := (cons (3, 4) nil).
@@ -81,9 +83,9 @@ corresponds to the derivability of the judgment
 
 Inductive has_type: list (string * type) -> term -> type -> Prop :=
   | has_type_var (gamma: list (string * type)) (x : string) (a : type): 
-      assoc gamma x a -> has_type gamma (var_term x) a
+      assoc (cons (x, a) gamma) x a -> has_type gamma (var_term x) a
   | has_type_abs (gamma: list (string * type)) (x : string) (a : type) (m : term) (b : type):
-      assoc gamma x a -> has_type gamma m b -> has_type gamma (abs_term x a m) (fun_type a b)
+      assoc (cons (x, a) gamma) x a -> has_type gamma m b -> has_type gamma (abs_term x a m) (fun_type a b)
   | has_type_app (gamma: list (string * type)) (a b : type) (f n : term):
       has_type gamma f (fun_type a b) -> has_type gamma n a -> has_type gamma (app_term f n) b
   .
@@ -101,27 +103,31 @@ Inductive has_type: list (string * type) -> term -> type -> Prop :=
   For this reason the output type is not type but option type.
 *)
 
-(* Program Fixpoint type_check
-       : list (string * type) -> term -> option type :=
-       None. *)
-
-
-Program Fixpoint lookup' {A B : Set}
-         (equal_proc_dec: forall x y : A, {x = y} + {x <> y}) 
-         {l : list (A * B)}
-         {a : A} :=
-  match l return option {b : B | assoc l a b} with
-  | nil => None
-  | cons x rest => None
+Fixpoint type_check
+  (context: list (string * type)) 
+  (m: term) 
+  {struct m}: option type :=
+  match m as m with 
+  | var_term x => lookup string_dec context x
+  | abs_term x a m => 
+      match type_check (cons (x, a) context) m with
+      | None => None
+      | Some b => Some (fun_type a b)
+      end
+  | app_term f n => 
+      match type_check context f, type_check context n with
+      | Some tf, Some a =>
+          match tf with
+          | fun_type a b => Some b
+          | _ => None
+          end
+      | _, _ => None
+      end
   end.
-        
 
 
-Program Fixpoint  type_check'
-       {Gamma : list (string * type)} 
-       {M : term} :=
-  match M return option {A : type | has_type Gamma M A} with
-  | var_term x => None
-  | abs_term x tx m => None
-  | app_term f n => None
-  end.
+Definition typeA := var_type "A".
+Definition varX := var_term "x".
+
+Definition empty_env : list (string * type) := nil.
+Compute (type_check (cons ("x", typeA) empty_env) varX).
