@@ -72,14 +72,6 @@ Inductive term : Set :=
 Proof. *)
 Definition context := total_map (option type).
 Definition empty_context : context := t_empty None.
-(* Inductive has_type: list (string * type) -> term -> type -> Prop :=
-  | has_type_var (gamma: list (string * type)) (x : string) (a : type): 
-      assoc (cons (x, a) gamma) x a -> has_type gamma (var_term x) a
-  | has_type_abs (gamma: list (string * type)) (x : string) (a : type) (m : term) (b : type) (ft : type):
-      assoc (cons (x, a) gamma) x a -> has_type gamma m b -> ft = fun_type a b ->  has_type gamma (abs_term x a m) ft
-  | has_type_app (gamma: list (string * type)) (a b : type) (f n : term):
-      has_type gamma f (fun_type a b) -> has_type gamma n a -> has_type gamma (app_term f n) b
-  . *)
 
 (* tests *)
 (* Definition test1_gamma := (cons (3, 4) nil).
@@ -107,10 +99,6 @@ Inductive has_type : context -> term -> type -> Prop :=
 (*
   Write a recursive function type_check that (in a given context) 
   returns the type of an element of term. 
-  A possible Coq type for this function might be
-
-  type_check
-       : list (string * type) -> term -> option type
   
   If the input term (the second argument) is not type correct, 
   the function will have to return None. 
