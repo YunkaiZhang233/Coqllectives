@@ -69,35 +69,17 @@ Inductive term : Set :=
 
 
 (* Definition assoc: forall A B : Set, list (A * B) -> A -> B -> Prop.
-Proof.
-
-Defined. *)
-
-
-(*
-  for duplicate bindings: only the first value in typing context matters!!!
-*)
-
-Inductive assoc {A B: Set}: list (A * B) -> A -> B -> Prop :=
-  | assoc_front (rest: list (A * B)) (e1 : A) (e2 : B) : assoc (cons (e1, e2) rest) e1 e2
-  | assoc_cons (rest: list (A * B)) (e1 : A) (e2 : B) (f1 : A) (f2 : B) : assoc rest e1 e2 -> e1 <> f1 -> assoc (cons (f1, f2) rest) e1 e2
-  .
-
-Print sig.
-Check exist.
-
-Fixpoint lookup {A B: Set}
-  (equal_proc_dec: forall x y : A, {x = y} + {x <> y}) 
-  (context: list (A * B))
-  (key: A) 
-  {struct context}
-  :
-  option B:=
-
-  match context with
-    | nil => None
-    | (cons (pair a b) rest) => if equal_proc_dec a key then Some b else (lookup equal_proc_dec rest key)
-  end.
+Proof. *)
+Definition context := total_map (option type).
+Definition empty_context : context := t_empty None.
+(* Inductive has_type: list (string * type) -> term -> type -> Prop :=
+  | has_type_var (gamma: list (string * type)) (x : string) (a : type): 
+      assoc (cons (x, a) gamma) x a -> has_type gamma (var_term x) a
+  | has_type_abs (gamma: list (string * type)) (x : string) (a : type) (m : term) (b : type) (ft : type):
+      assoc (cons (x, a) gamma) x a -> has_type gamma m b -> ft = fun_type a b ->  has_type gamma (abs_term x a m) ft
+  | has_type_app (gamma: list (string * type)) (a b : type) (f n : term):
+      has_type gamma f (fun_type a b) -> has_type gamma n a -> has_type gamma (app_term f n) b
+  . *)
 
 (* tests *)
 (* Definition test1_gamma := (cons (3, 4) nil).
@@ -110,13 +92,16 @@ corresponds to the derivability of the judgment
   Gamma |- M : A
 *)  
 
-Inductive has_type: list (string * type) -> term -> type -> Prop :=
-  | has_type_var (gamma: list (string * type)) (x : string) (a : type): 
-      assoc (cons (x, a) gamma) x a -> has_type gamma (var_term x) a
-  | has_type_abs (gamma: list (string * type)) (x : string) (a : type) (m : term) (b : type) (ft : type):
-      assoc (cons (x, a) gamma) x a -> has_type gamma m b -> ft = fun_type a b ->  has_type gamma (abs_term x a m) ft
-  | has_type_app (gamma: list (string * type)) (a b : type) (f n : term):
-      has_type gamma f (fun_type a b) -> has_type gamma n a -> has_type gamma (app_term f n) b
+Definition context_update (gamma: context) (x : string) (a : type) :=
+  t_update gamma x (Some a).
+
+Inductive has_type : context -> term -> type -> Prop :=
+  | has_type_var (gamma : context) (x : string) (t : type):
+      gamma x = Some t -> has_type gamma (var_term x) t
+  | has_type_abs (gamma : context) (x : string) (a : type) (m : term) (b : type):
+      has_type (context_update gamma x a) m b -> has_type gamma (abs_term x a m) (fun_type a b)
+  | has_type_app (gamma : context) (f n : term) (a b : type):
+      has_type gamma f (fun_type a b) /\ has_type gamma n a -> has_type gamma (app_term f n) b
   .
 
 (*
@@ -133,97 +118,65 @@ Inductive has_type: list (string * type) -> term -> type -> Prop :=
 *)
 
 Fixpoint type_check
-  (context: list (string * type)) 
+  (gamma : context) 
   (m: term) 
   {struct m}: option type :=
   match m as m with 
-  | var_term x => lookup string_dec context x
+  | var_term x => gamma x
   | abs_term x a m => 
-      match type_check (cons (x, a) context) m with
-      | None => None
+      match type_check (context_update gamma x a) m with
       | Some b => Some (fun_type a b)
+      | None => None
       end
   | app_term f n => 
-      match type_check context f, type_check context n with
-      | Some tf, Some a =>
-          match tf with
-          | fun_type a b => Some b
-          | _ => None
-          end
+      match type_check gamma f, type_check gamma n with
+      | Some (fun_type a b), Some c =>
+          if type_dec a c then Some b else None
       | _, _ => None
       end
   end.
 
 Search sumbool.
 
-
-
-
 Definition typeA := var_type "A".
 Definition varX := var_term "x".
 
-Lemma lookup_front_diff : 
-  forall (x' : string) (t' : type) (l : list (string * type)) (x : string) (t : type),
-  x <> x' ->
-  lookup string_dec ((x', t') :: l) x = lookup string_dec l x.
+Compute (type_check (context_update empty_context "x" typeA) varX).
+
+Theorem typecheck_safe (gamma : context) (m : term) (t : type):
+  type_check gamma m = Some t -> has_type gamma m t.
 Proof.
-  intros x' t' l x t Hneq.
-  elim (string_dec x x'); intros Hcon.
-  unfold lookup.
-  - (* This case is not possible due to assumption Hneq *)
-    exfalso.
-    apply Hneq.
-    assumption.
-  - (* x <> x' *)
-    simpl.
-    destruct (string_dec x' x) eqn:H.
-    + exfalso. auto.
-    + simpl.
-      auto.
-Qed.
-
-Definition empty_env : list (string * type) := nil.
-Compute (type_check (cons ("x", typeA) empty_env) varX).
-
-Search "if" sumbool.
-
-Theorem lookup_assoc (context : list (string * type)) (x : string) (t : type) :
-  @lookup string type string_dec context x = Some t -> assoc context x t.
-Proof.
-  intros Hl.
-  induction context as [| h l IH].
-  (* base case *)
-  - exfalso.
-    simpl in Hl.
-    discriminate Hl.
-  (* inductive case *)
-  - destruct h  as [x' t'].
-    destruct (string_dec x x') as [Heq | Hneq].
-    (* x = x' *)
-    + rewrite Heq in Hl.
-      rewrite Heq in IH. 
-      rewrite Heq.
-      simpl in Hl.
-      destruct (string_dec x' x') eqn:con.
-      {
-        inversion Hl.
-        apply assoc_front.
-      }
-      {
-        contradiction.
-      }
-
-    (* x <> x'*)
-    + apply assoc_cons; auto.
-      apply IH.
-      apply eq_trans with (y:=lookup string_dec ((x', t') :: l) x).
-      symmetry.
-      apply lookup_front_diff; auto.
-      exact Hl.
-Qed.
-
-Theorem typecheck_safe (context : list (string * type)) (m : term) (t : type):
-  type_check context m = Some t -> has_type context m t.
-Proof.
-
+  generalize dependent gamma.
+  generalize dependent t.
+  induction m; intros ty gamma Htc; inversion Htc.
+  (* var *)
+  {
+    apply has_type_var.
+    assumption. 
+  }
+  (* abs *)
+  {
+    rename s into x.
+    remember (context_update gamma x t) as gamma'.
+    remember (type_check gamma' m) as t'.
+    destruct t'; try solve_by_invert.
+    inversion H0. subst.
+    apply has_type_abs.
+    apply IHm.
+    symmetry.
+    apply Heqt'.
+  }
+  (* app *)
+  {
+    remember (type_check gamma m1) as to1.
+    destruct to1 as [t1|]; try solve_by_invert.
+    destruct t1 as [| t11 t12]; try solve_by_invert.
+    remember (type_check gamma m2) as to2.
+    destruct to2 as [t2|]; try solve_by_invert.
+    destruct (type_dec t11 t2) eqn:Hteq; try solve_by_invert.
+    apply has_type_app with (a:=t2).
+    injection H0 as H0.
+    subst.
+    split; [apply IHm1 | apply IHm2]; symmetry; [apply Heqto1 | apply Heqto2].
+  }
 Qed.
