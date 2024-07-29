@@ -18,6 +18,24 @@ Ltac solve_by_inverts n :=
 Ltac solve_by_invert :=
   solve_by_inverts 1.
 
+(* Defining Map *)
+
+Definition total_map (A : Type) := string -> A.
+Definition t_empty {A : Type} (v : A) : total_map A :=
+  (fun _ => v).
+Definition t_update {A : Type} (m : total_map A)
+                    (x : string) (v : A) :=
+  fun x' => if String.eqb x x' then v else m x'.
+
+Definition examplemap :=
+  t_update (t_update (t_empty false) "foo" true)
+           "bar" true.
+
+Compute (examplemap "foo").
+
+(* Map Finished *)
+(* Will be used for typing context *)
+
 Inductive type : Set :=
   | var_type : string -> type
   | fun_type : type -> type -> type
