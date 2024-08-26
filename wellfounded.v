@@ -48,52 +48,68 @@ then the law of excluded middle holds.
 
 (*
   For a written version of the theoretical reasoning,
-  refer to https://ncatlab.org/toddtrimble/published/classical+well-foundedness
+  refer to 
+  https://ncatlab.org/toddtrimble/published/classical+well-foundedness
+  https://ncatlab.org/nlab/show/well-founded+relation
 *)
 Definition classical_well_founded {X : Type} (R : X -> X -> Prop) :=
   forall (P : X -> Prop), 
     (exists x, P x) ->
          exists t, P t /\ (forall y, P y -> ~ (R y t)).
 
+Lemma bool_lt_f_t :
+  bool_lt false true.
+Proof.
+  unfold bool_lt.
+  auto.
+Qed.
+
 Theorem classical_lem :
   classical_well_founded bool_lt -> (forall Q : Prop, Q \/ ~ Q).
 Proof.
   intros H.
   unfold classical_well_founded in H.
+  intros Q.
+  set (fP := fun a => (a = true) \/ (bool_lt a true /\ Q)).
   
+  assert (H0 : exists x : bool, fP x).
+  {
+    exists true.
+    unfold fP.
+    auto.
+  }
 
-  (*
-    Think P as the function to fetch the minimal element
-  *)
-  set (Fmin := fun b => b = false).
-  specialize (H Fmin).
-  assert (Hf : Fmin false).
+
+  specialize (H fP).
+  apply H in H0.
+
+  destruct H0 as [t [H1 H2]].
+  unfold fP in H1.
+
+  elim H1.
   {
-    unfold Fmin.
+    intros Ht.
+    rewrite Ht in H1.
+    rewrite Ht in H2.
+    right.
+    intros Hq.
+    specialize (H2 false).
+    assert (Hf : fP false).
+    {
+      unfold fP.
+      right.
+      split; auto.
+      apply bool_lt_f_t.
+    }
+    apply H2 in Hf.
+    assert (Hf' : bool_lt false true) by (apply bool_lt_f_t).
     auto.
   }
-  assert (H1: exists x : bool, Fmin x).
   {
-    exists false.
+    intros [Ht1 Ht2].
+    left.
     auto.
   }
-  apply H in H1.
-  destruct H1 as [t Ht].
-  destruct t.
-  (* true *)
-  {
-    unfold Fmin in Ht.
-    exfalso.
-    lia.
-  }
-  (* false *)
-  {
-    destruct Ht.
-    intros Q.
-    set (f := fun b : bool => if b then Q else ~Q).
-    
-  }
-  
 Qed.
 
 
