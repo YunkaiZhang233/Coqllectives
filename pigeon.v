@@ -1,3 +1,4 @@
+Require Import Arith.
 Require Import Lia.
 
 (* 
@@ -13,15 +14,6 @@ to the number of its hole in {0...m−1}
 The fact that f also will map numbers ≥ n to something will not hurt.
  *)
 
-Lemma double_neg A:
-  A <-> ~~A.
-Proof.
-  split; intros H.
-  - unfold not. intros H1. apply H1. auto.
-  - 
-  
-Qed.
-
 
 Lemma pigeon_hole :
   forall m n, m < n ->
@@ -29,8 +21,19 @@ Lemma pigeon_hole :
       exists i, i < n /\
         exists j, j < n /\ i <> j /\ f i = f j.
 Proof.
-  intros m n Hle f Hmap.
+  intros m n.
+  induction n as [|n' IH]; intros Hmn f Hf; simpl.
+  - specialize (Hf O). 
+    exfalso.
+    lia.
+  - elim (le_lt_dec n' m); intros Hcmp.
+    (* n' <= m*)
+    {
+      admit.
+    }
+    (* m < n' *)
+    {
 
-  
-  admit.
+    }
+    
 Qed.
